@@ -21,7 +21,8 @@ export function createRenderer(
       cancel = false;
       window.requestAnimationFrame(step);
     },
-    stop: () => cancel = true
+    stop: () => cancel = true,
+    is_playing: () => !cancel
   };
 }
 

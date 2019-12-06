@@ -10,14 +10,21 @@ const appDiv: HTMLElement = document.getElementById('app');
 appDiv.innerHTML = `
 <canvas id="canvas"></canvas>
 <button id="debug_circle">Show Radius</button>
+<button id="pause">Pause</button>
 `;
 
 const canvas: HTMLCanvasElement = document.getElementById('canvas') as HTMLCanvasElement;
 const show_radius_button: HTMLButtonElement = document.getElementById('debug_circle') as HTMLButtonElement;
+const pause_button: HTMLButtonElement = document.getElementById('pause') as HTMLButtonElement;
 canvas.width = 500;
 canvas.height = 500;
 
 const renderer = createRenderer( canvas, render );
+
+pause_button.onclick = () => {
+  renderer.is_playing() ? renderer.stop(): renderer.start();
+  pause_button.innerText = renderer.is_playing() ? 'Pause' : 'Play';
+};
 
 const background_color = '#3F3F3F';
 
