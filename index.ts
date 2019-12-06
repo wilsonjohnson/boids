@@ -114,7 +114,7 @@ function make_boid(
   }
 }
 
-const boid_array = [...generate_boids(100)];
+const boid_array = [...generate_boids(20)];
 const no_move_boids = [];
 
 show_radius_button.onclick = () => {
@@ -427,8 +427,13 @@ function render(
     update_alignment( boid, boid.nearby );
     update_group( boid, boid.nearby, width, height );
 
-    const vs = vector_sum;
-    const target = vs( boid.velocity, vs( vs( boid.alignment, boid.separation ), boid.group ));
+    let target = vector_sum( boid.alignment, boid.separation );
+    target = vector_sum( target, boid.group );
+    target = vector_sum( target, boid.velocity );
+    target = vector_sum( target, vector_divide(vector_sub({...boid,y:height}, boid), 30))
+    target = vector_sum( target, vector_divide(vector_sub({...boid,y:0}, boid), 30))
+    target = vector_sum( target, vector_divide(vector_sub({...boid,x:width}, boid), 30))
+    target = vector_sum( target, vector_divide(vector_sub({...boid,x:0}, boid), 30))
     boid.velocity = vector_lerp( boid.velocity, target, boid.turn_speed );
     // boid.velocity = target;
     update_boid_position( boid, width, height );
