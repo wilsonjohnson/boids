@@ -1,6 +1,7 @@
 // Import stylesheets
 import './style.css';
 import { createRenderer } from './render';
+import { pre_render } from './pre-render';
 
 const TAU = Math.PI * 2;
 const ORIGIN: Vector = {x:0,y:0};
@@ -14,6 +15,18 @@ appDiv.innerHTML = `
 `;
 
 const canvas: HTMLCanvasElement = document.getElementById('canvas') as HTMLCanvasElement;
+const pre_render_boid: HTMLCanvasElement = pre_render( 10, 10, context => {
+  context.save();
+  context.translate(5,5);
+  context.fillStyle = 'white';
+  context.beginPath();
+  context.lineTo(0, 5);
+  context.lineTo(2.5, -5);
+  context.lineTo(-2.5, -5);
+  context.fill();
+  context.restore();
+});
+
 const show_radius_button: HTMLButtonElement = document.getElementById('debug_circle') as HTMLButtonElement;
 const pause_button: HTMLButtonElement = document.getElementById('pause') as HTMLButtonElement;
 canvas.width = 500;
@@ -47,6 +60,9 @@ interface Boid extends Vector {
   alignment: Vector;
   group: Vector;
   nearby: Boid[];
+  approaching: Boid[];
+  approach_radius: number;
+  approach_radius_squared: number;
   gap: number;
   debug?: {
     radius?: boolean,
@@ -107,6 +123,9 @@ function make_boid(
     separation: ORIGIN,
     group: ORIGIN,
     nearby: [],
+    approaching: [],
+    approach_radius: 30,
+    approach_radius_squared: 100,
     gap: 500,
     debug: {
       radius: false
@@ -128,6 +147,8 @@ function* generate_boids( amount: number ) {
     const cur = make_boid();
     cur.id = i;
     cur.radius_squared = cur.radius ** 2;
+    cur.approach_radius = cur.approach_radius + cur.radius;
+    cur.approach_radius_squared = cur.approach_radius ** 2;
     yield cur;
   }
 }
@@ -209,6 +230,34 @@ function draw_detection_distance(
   }
 }
 
+function draw_connections(
+  context: CanvasRenderingContext2D,
+  boid: Boid,
+  width: number,
+  height: number
+) {
+  context.save();
+  context.strokeStyle = 'green';
+  context.beginPath();
+  for( let other of boid.nearby ) {
+    prepare_line_between( context, boid, other, width, height );
+  }
+  context.stroke();
+  context.closePath();
+
+  for ( let other of boid.approaching ) {
+    const offset = toroidal_offset(boid,other, width, height );
+
+    const dist = mag(offset) - boid.radius;
+    
+    draw_line_between( context, boid, other, width, height, `rgba(0,128,0,${dist / 100})`);
+
+  } 
+
+
+  context.restore();
+}
+
 function draw_boid(
   context: CanvasRenderingContext2D,
   boid: Boid,
@@ -222,12 +271,7 @@ function draw_boid(
   const {x,y} = boid.velocity;
   const magnitude = mag( boid.velocity );
   context.transform( y / magnitude, -x / magnitude, x / magnitude, y / magnitude, 0, 0 );
-  context.fillStyle = 'white';
-  context.beginPath();
-  context.lineTo(0, 5);
-  context.lineTo(2.5, -5);
-  context.lineTo(-2.5, -5);
-  context.fill();
+  context.drawImage( pre_render_boid, -pre_render_boid.width/2, -pre_render_boid.height/2 );
   context.restore();
   if ( !boid.debug ) {
     context.restore();
@@ -262,10 +306,6 @@ function draw_boid(
   }
 
   context.restore();
-  
-  for( let other of boid.nearby ) {
-    draw_line_between( context, boid, other, width, height, 'green');
-  }
 }
 
 function draw_line_between(
@@ -282,6 +322,18 @@ function draw_line_between(
   const to = vector_sum(toroidal_offset({x:x1,y:y1},{x:x2,y:y2}, width, height ), {x:x1,y:y1});
   context.lineTo(to.x,to.y);
   context.stroke();
+}
+
+function prepare_line_between(
+  context: CanvasRenderingContext2D,
+  {x:x1,y:y1}: Vector,
+  {x:x2,y:y2}: Vector,
+  width: number,
+  height: number
+) {
+  context.moveTo(x1,y1);
+  const to = vector_sum(toroidal_offset({x:x1,y:y1},{x:x2,y:y2}, width, height ), {x:x1,y:y1});
+  context.lineTo(to.x,to.y);
 }
 
 function update_boid_position( boid: Boid, width: number, height: number ) {
@@ -415,9 +467,16 @@ function render(
   const avg_rate = rate_array.reduce((x,y)=>x+y,0)/rate_array.length;
 
   context.fillText( Math.floor( avg_rate ), 5, 20 );
+  context.fillText( boid_array.length, 5, 40 );
 
   context.save();
   for( let boid of boid_array ) {
+    boid.approaching = boid_array.filter( other => {
+      const dist = toroidal_distance_squared( boid, other, width, height );
+     return dist < boid.approach_radius_squared
+      && dist > boid.radius_squared
+      && other !== boid
+    });
     boid.nearby = boid_array.filter( other => {
      return toroidal_distance_squared( boid, other, width, height ) < boid.radius_squared
       && other !== boid
@@ -434,12 +493,15 @@ function render(
     target = vector_sum( target, vector_divide(vector_sub({...boid,y:0}, boid), 30))
     target = vector_sum( target, vector_divide(vector_sub({...boid,x:width}, boid), 30))
     target = vector_sum( target, vector_divide(vector_sub({...boid,x:0}, boid), 30))
+    target = vector_sum( target, vector_divide(vector_sub({x:width/2,y:height/2}, boid), 30))
     boid.velocity = vector_lerp( boid.velocity, target, boid.turn_speed );
     // boid.velocity = target;
     update_boid_position( boid, width, height );
   }
+  boid_array.forEach( boid => draw_connections( context, boid, width, height ));
   boid_array.forEach( boid => draw_boid( context, boid, width, height ));
   no_move_boids.forEach( boid => draw_boid( context, boid, width, height ));
+  no_move_boids.forEach( boid => draw_connections( context, boid, width, height ));
   
   context.fillStyle = 'white';
   context.strokeStyle = 'white';

@@ -1,4 +1,3 @@
-
 export function createRenderer(
   canvas: HTMLCanvasElement,
   renderer: Renderer
