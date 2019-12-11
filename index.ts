@@ -2,6 +2,9 @@
 import './style.css';
 import { createRenderer } from './render';
 import { pre_render } from './pre-render';
+import { Boid as Bird } from './boids';
+import { vec2 } from '@tlaukkan/tsm';
+import { Torus } from './torus';
 
 const TAU = Math.PI * 2;
 const ORIGIN: Vector = {x:0,y:0};
@@ -13,6 +16,10 @@ appDiv.innerHTML = `
 <button id="debug_circle">Show Radius</button>
 <button id="pause">Pause</button>
 `;
+
+
+
+
 
 const canvas: HTMLCanvasElement = document.getElementById('canvas') as HTMLCanvasElement;
 const pre_render_boid: HTMLCanvasElement = pre_render( 10, 10, context => {
@@ -31,6 +38,36 @@ const show_radius_button: HTMLButtonElement = document.getElementById('debug_cir
 const pause_button: HTMLButtonElement = document.getElementById('pause') as HTMLButtonElement;
 canvas.width = 500;
 canvas.height = 500;
+
+function random_vec2(max: vec2) {
+  return max.copy().multiply( new vec2([Math.random(), Math.random()])).add(vec2.one);
+}
+
+function random_angle(): vec2 {
+  const angle = Math.random() * TAU;
+  const magnitude = Math.random() + 1;
+  return new vec2([Math.sin( angle ), Math.cos( angle )]).scale(magnitude);
+}
+
+const torus: Torus = new Torus( new vec2([canvas.width, canvas.height]) );
+
+function* generate_new_boids( amount: number, torus: Torus ) {
+  for ( let i = 0; i < amount; i++ ) {
+    const cur: Bird = new Bird( random_vec2( torus.dimensions ), torus.dimensions );
+    cur.velocity.xy = random_angle().xy;
+    cur.add_velocity( random_angle() );
+    yield cur;
+  }
+}
+
+const boid_1 = new Bird(new vec2([ 450.1, 450 ]), torus.dimensions );
+const boid_2 = new Bird(new vec2([ 50, 50 ]), torus.dimensions );
+boid_1.add_velocity(new vec2([2,2]));
+boid_2.add_velocity(new vec2([-2,-2]));
+
+const new_boids = [...generate_new_boids(20, torus)];
+
+
 
 const renderer = createRenderer( canvas, render );
 
@@ -133,7 +170,7 @@ function make_boid(
   }
 }
 
-const boid_array = [...generate_boids(20)];
+const boid_array = [...generate_boids(0)];
 const no_move_boids = [];
 
 show_radius_button.onclick = () => {
@@ -469,6 +506,13 @@ function render(
   context.fillText( Math.floor( avg_rate ), 5, 20 );
   context.fillText( boid_array.length, 5, 40 );
 
+  for ( let boid of new_boids ) {
+    boid.update( new_boids, torus );
+    boid.tick();
+  }
+  for ( let boid of new_boids ) {
+    boid.draw(context);
+  }
   context.save();
   for( let boid of boid_array ) {
     boid.approaching = boid_array.filter( other => {

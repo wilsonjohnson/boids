@@ -5,6 +5,8 @@
     "paths": {
       "*": [
         "render/*",
+        "boids/*",
+        "torus/*",
         "pre-render/*"
       ]
     },
