@@ -1,8 +1,8 @@
 // Import stylesheets
 import './style.css';
 import { createRenderer } from './render';
-import { pre_render } from './pre-render';
-import { Boid } from './boids';
+import { pre_render, Sprite } from './pre-render';
+import { Boid, Player } from './boids';
 import { vec2 } from '@tlaukkan/tsm';
 import { Torus } from './torus';
 
@@ -11,7 +11,7 @@ const TAU = Math.PI * 2;
 // Write TypeScript code!
 const appDiv: HTMLElement = document.getElementById('app');
 appDiv.innerHTML = `
-<canvas id="canvas"></canvas>
+<canvas id="canvas" tabindex="1"></canvas>
 <button id="debug_circle">Show Radius</button>
 <button id="pause">Pause</button>
 `;
@@ -29,6 +29,20 @@ const pre_render_boid: HTMLCanvasElement = pre_render( 10, 10, context => {
   context.restore();
 });
 
+const player_sprite = new Sprite(10,10,context => {
+  context.save();
+  context.translate(5,5);
+  context.fillStyle = '#008AFF';
+  context.beginPath();
+  context.lineTo(0, 5);
+  context.lineTo(2.5, -5);
+  context.lineTo(-2.5, -5);
+  context.fill();
+  context.restore();
+});
+
+
+
 const show_radius_button: HTMLButtonElement = document.getElementById('debug_circle') as HTMLButtonElement;
 const pause_button: HTMLButtonElement = document.getElementById('pause') as HTMLButtonElement;
 canvas.width = 500;
@@ -45,6 +59,7 @@ function random_angle(): vec2 {
 }
 
 const torus: Torus = new Torus( new vec2([canvas.width, canvas.height]) );
+const player = new Player(torus.dimensions.copy().scale(0.5), torus.dimensions, undefined, player_sprite);
 
 function* generate_new_boids( amount: number, torus: Torus ) {
   for ( let i = 0; i < amount; i++ ) {
@@ -55,7 +70,7 @@ function* generate_new_boids( amount: number, torus: Torus ) {
   }
 }
 
-const new_boids = [...generate_new_boids(100, torus)];
+const new_boids = [...generate_new_boids(100, torus), player];
 
 const renderer = createRenderer( canvas, render );
 
@@ -78,6 +93,9 @@ show_radius_button.onclick = () => {
   
 };
 
+const keys: any = {};
+
+
 function render(
   context: CanvasRenderingContext2D,
   delta: number,
@@ -99,6 +117,13 @@ function render(
   context.fillText( Math.floor( avg_rate ), 5, 20 );
   context.fillText( new_boids.length, 5, 40 );
 
+  if ( keys.ArrowLeft ) {
+    player.turn_left();
+    console.log( keys );
+  }
+  if ( keys.ArrowRight ) player.turn_right();
+  if ( keys.ArrowUp ) player.speed_up();
+
   for ( let boid of new_boids ) {
     boid.update( new_boids, torus );
     boid.tick();
@@ -115,13 +140,25 @@ function add_boid_at({x,y}:{x:number, y: number}) {
   // boid.nearby = no_move_boids;
   boid.velocity = random_angle();
   new_boids.push( boid );
+  canvas.focus();
 }
 
 canvas.addEventListener('click', add_boid_at);
+
+function key_down( event: KeyboardEvent ) {
+   keys[event.key] = true;
+}
+
+function key_up( event: KeyboardEvent ) {
+   keys[event.key] = false;
+}
+
+canvas.addEventListener('keydown', key_down, false );
+canvas.addEventListener('keyup', key_up, false );
 
 // add_still_boid_at( {x:25 ,y: 275});
 // add_still_boid_at( {x:475 ,y: 225});
 // add_still_boid_at( {x:275 ,y: 25});
 // add_still_boid_at( {x:225 ,y: 475});
-
+canvas.focus();
 renderer.start();

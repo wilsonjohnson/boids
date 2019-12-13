@@ -17,8 +17,9 @@ export class Boid {
 
   constructor(
     public position: vec2 = vec2.zero.copy(),
-    private constraints: vec2,
-    private max_speed: number = 2
+    protected constraints: vec2,
+    protected max_speed: number = 2,
+    protected image?: Sprite 
   ) {
     this.velocity = new vec2([0,0]);
     this.acceleration = new vec2([0,0]);
@@ -27,6 +28,7 @@ export class Boid {
     this.view_radius = 35;
     this.personal_bubble = 25;
     if ( ! Boid.IMAGE ) Boid.init();
+    if ( ! this.image ) this.image = Boid.IMAGE;
   }
 
   private static init() {
@@ -114,6 +116,16 @@ export class Boid {
     this.add_velocity( target );
   }
 
+  private avoid_point(point: vec2): vec2 {
+    const target = vec2.zero.copy();
+    const between: vec2 = Torus.offset( this.constraints, this.position, point );
+    const length = between.length();
+    if ( length > 0 && length < this.personal_bubble + 50 ) {
+      target.subtract( between.scale( 1 / length ) );
+    }
+    return target;
+  }
+
   private update_separation( others: Boid[] ) {
     if ( others.length === 0 ) return;
     const target = vec2.zero.copy();
@@ -176,7 +188,7 @@ export class Boid {
     const {x,y} = this.velocity;
     const magnitude = this.velocity.length();
     context.transform( y / magnitude, -x / magnitude, x / magnitude, y / magnitude, 0, 0 );
-    Boid.IMAGE.draw(context);
+    this.image.draw(context);
     context.restore();
   }
 }
