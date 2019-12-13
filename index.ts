@@ -117,12 +117,10 @@ function render(
   context.fillText( Math.floor( avg_rate ), 5, 20 );
   context.fillText( new_boids.length, 5, 40 );
 
-  if ( keys.ArrowLeft ) {
-    player.turn_left();
-    console.log( keys );
-  }
+  if ( keys.ArrowLeft ) player.turn_left();
   if ( keys.ArrowRight ) player.turn_right();
   if ( keys.ArrowUp ) player.speed_up();
+  if ( keys.ArrowDown ) player.speed_up();
 
   for ( let boid of new_boids ) {
     boid.update( new_boids, torus );

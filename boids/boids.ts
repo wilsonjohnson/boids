@@ -13,13 +13,16 @@ export class Boid {
   private _max_force_squared: number;
   private _view_radius: number;
   private _view_radius_squared: number;
+  private _max_acceleration: number;
+  private _max_acceleration_squared: number;
   private static IMAGE: Sprite;
 
   constructor(
     public position: vec2 = vec2.zero.copy(),
     protected constraints: vec2,
     protected max_speed: number = 2,
-    protected image?: Sprite 
+    protected image?: Sprite,
+    protected boid_type: string = 'boid'
   ) {
     this.velocity = new vec2([0,0]);
     this.acceleration = new vec2([0,0]);
@@ -27,6 +30,7 @@ export class Boid {
     this.max_force = 0.03;
     this.view_radius = 35;
     this.personal_bubble = 25;
+    this.max_acceleration = 5;
     if ( ! Boid.IMAGE ) Boid.init();
     if ( ! this.image ) this.image = Boid.IMAGE;
   }
@@ -81,9 +85,32 @@ export class Boid {
     this._max_force_squared = value;
     this._max_force = Math.sqrt( value );
   }
+  public get max_acceleration(): number {
+    return this._max_acceleration;
+  }
+
+  public set max_acceleration( value: number ) {
+    this._max_acceleration = value;
+    this._max_acceleration_squared = value ** 2;
+  }
+
+  public get max_acceleration_squared(): number {
+    return this._max_acceleration_squared;
+  }
+
+  public set max_acceleration_squared( value: number ) {
+    this._max_acceleration_squared = value;
+    this._max_acceleration = Math.sqrt( value );
+  }
 
   public add_velocity( value: vec2 ) {
     this.acceleration.add( value );
+  }
+
+  public limit_acceleration( ) {
+    if ( this.acceleration.squaredLength() > this.max_acceleration_squared ) {
+      this.acceleration.normalize().scale(this.max_acceleration);
+    }
   }
 
   private update_grouping( others: Boid[] ) {
@@ -143,6 +170,7 @@ export class Boid {
 
   public update_velocity() {  
     if ( this.acceleration.squaredLength() === 0 ) return;
+    this.limit_acceleration();
     // const velocity = vec2.mix( this.velocity, this.acceleration, this.turn_speed );
     // this.acceleration.xy = this.velocity.xy;
     // this.acceleration.xy = vec2.zero.xy;
@@ -152,6 +180,18 @@ export class Boid {
     if ( this.velocity.squaredLength() > this.max_speed_squared ) {
       this.velocity.normalize().scale(this.max_speed);
     }
+  }
+
+  public target_player( others: Boid[] ) {
+    const players = others.filter( other => other.boid_type === 'player' );
+    if ( players.length === 0 ) return;
+    const target = vec2.zero.copy();
+    for( let other of players ) {
+      if ( other === this ) continue;
+      target.add( other.velocity.copy().scale(2) );
+    }
+    target.scale( 1 / players.length ).scale( 1/ 100 );
+    this.add_velocity( target );
   }
 
   public update_position() {
@@ -175,6 +215,7 @@ export class Boid {
     this.update_separation( nearby );
     this.update_alignment( nearby );
     this.update_grouping( nearby );
+    this.target_player( nearby );
   }
 
   public tick() {

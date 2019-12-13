@@ -20,7 +20,7 @@ export class Player extends Boid {
     max_speed: number = 2,
     image?: Sprite 
   ) {
-    super( position, constraints, max_speed, image );
+    super( position, constraints, max_speed, image, 'player' );
   }
 
   public turn_left() {
