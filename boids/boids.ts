@@ -91,14 +91,14 @@ export class Boid {
       vector.add( Torus.offset( this.constraints, this.position, other.position ) );
     }
     vector.scale( 1 / others.length );
-    vector.subtract( this.position );
+    // vector.subtract( this.position );
     vector.scale( 1 / 100 );
     this.add_velocity( vector );
   }
 
   private limit_force( force: vec2 ): vec2 {
     if ( force.squaredLength() < this.max_force_squared ) return force;
-
+    return force.copy().normalize().scale( this.max_force );
   }
 
   private update_alignment( others: Boid[] ) {
@@ -110,10 +110,7 @@ export class Boid {
     target.scale( 1 / ( others.length ) );
     target.subtract(this.velocity);
     target.scale( 1/8 );
-    if ( target.squaredLength() > 3 ) {
 
-      target.subtract( this.velocity );
-    }
     this.add_velocity( target );
   }
 
@@ -129,16 +126,16 @@ export class Boid {
       }
     }
     target.scale( 1 / others.length );
-    target.subtract( this.velocity );
     this.add_velocity( target );
   }
 
   public update_velocity() {  
     if ( this.acceleration.squaredLength() === 0 ) return;
-    const velocity = vec2.mix( this.velocity, this.acceleration, this.turn_speed );
-    this.acceleration.xy = this.velocity.xy;
-
-    this.velocity = velocity;
+    // const velocity = vec2.mix( this.velocity, this.acceleration, this.turn_speed );
+    // this.acceleration.xy = this.velocity.xy;
+    // this.acceleration.xy = vec2.zero.xy;
+    this.velocity.add( this.acceleration );
+    // this.velocity = velocity;
 
     if ( this.velocity.squaredLength() > this.max_speed_squared ) {
       this.velocity.normalize().scale(this.max_speed);
